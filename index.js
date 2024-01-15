@@ -8,6 +8,11 @@ app.use(express.json());
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
+// ayrshear....
+
+const SocialPost = require("social-post-api");
+const social = new SocialPost("54R7NZH-WK7MHN5-G2ZAJFD-E2N3G1N");
+
 // mongo connect
 
 const Database_name = process.env.DB_NAME;
@@ -17,15 +22,6 @@ const JWT_SECRET = process.env.JWT_token;
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const { error } = require("console");
 const uri = `mongodb+srv://${Database_name}:${Database_pass}@cluster0.oikc1wt.mongodb.net/?retryWrites=true&w=majority`;
-
-// Function to generate a random secret key
-// const generateRandomKey = () => {
-//   return crypto.randomBytes(32).toString("base64");
-// };
-
-// // Generate and print a random secret key
-// const randomKey = generateRandomKey();
-// console.log(randomKey);
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -80,18 +76,51 @@ async function run() {
       res.json({ status: "error", error: "InvAlid Password" });
     });
 
-    // app.get("/podCasts/:id", async (req, res) => {
-    //   const id = req.params.id;
-    //   const result = await podcastCollections.findOne({
-    //     _id: new ObjectId(id),
-    //   });
-    //   res.send(result);
-    // });
-
     app.post("/upload_podcast", async (req, res) => {
-      const data = req.body;
-      const result = await podcastCollections.insertOne(data);
-      res.send(result);
+      try {
+        const data = req.body;
+        const videoLink = data.link;
+        const text = data.guest;
+        console.log(videoLink);
+
+        const post = await social.post({
+          post: `${text}: ${videoLink}`,
+          shorten_Links: true,
+          platforms: ["twitter"],
+        });
+
+        console.log(post, "hello90");
+
+        if (post.status === "error") {
+          for (const error of post.errors) {
+            switch (error.platform) {
+              case "youtube":
+                // Handle YouTube error (Code: 176)
+                console.error(
+                  `YouTube Error (Code ${error.code}): ${error.message}`
+                );
+                break;
+              case "tiktok":
+                // Handle TikTok error (Code: 212)
+                console.error(
+                  `TikTok Error (Code ${error.code}): ${error.message}`
+                );
+                break;
+              // Add additional cases for other platforms if needed
+            }
+          }
+
+          return res
+            .status(400)
+            .send({ error: "Error in posting on one or more platforms." });
+        }
+
+        const result = await podcastCollections.insertOne(data);
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "Internal Server Error" });
+      }
     });
 
     app.patch("/update_podcast/:id", async (req, res) => {
