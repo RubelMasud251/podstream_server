@@ -5,13 +5,8 @@ const port = process.env.PORT || 5000;
 const cors = require("cors");
 app.use(cors());
 app.use(express.json());
-const bcrypt = require("bcrypt");
+
 const jwt = require("jsonwebtoken");
-
-// ayrshear....
-
-const SocialPost = require("social-post-api");
-const social = new SocialPost("54R7NZH-WK7MHN5-G2ZAJFD-E2N3G1N");
 
 // mongo connect
 
@@ -37,10 +32,15 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
+    // all collections
     const podcastCollections = client
       .db("PodsCastStream")
       .collection("podsCasts");
     const adminCollection = client.db("PodsCastStream").collection("admin");
+    const categoryCollections = client
+      .db("PodsCastStream")
+      .collection("category");
+
     const notificationCollection = client
       .db("PodsCastStream")
       .collection("notification");
@@ -79,47 +79,37 @@ async function run() {
     app.post("/upload_podcast", async (req, res) => {
       try {
         const data = req.body;
-        const videoLink = data.link;
-        const text = data.guest;
-        console.log(videoLink);
-
-        const post = await social.post({
-          post: `${text}: ${videoLink}`,
-          shorten_Links: true,
-          platforms: ["twitter"],
-        });
-
-        console.log(post, "hello90");
-
-        if (post.status === "error") {
-          for (const error of post.errors) {
-            switch (error.platform) {
-              case "youtube":
-                // Handle YouTube error (Code: 176)
-                console.error(
-                  `YouTube Error (Code ${error.code}): ${error.message}`
-                );
-                break;
-              case "tiktok":
-                // Handle TikTok error (Code: 212)
-                console.error(
-                  `TikTok Error (Code ${error.code}): ${error.message}`
-                );
-                break;
-              // Add additional cases for other platforms if needed
-            }
-          }
-
-          return res
-            .status(400)
-            .send({ error: "Error in posting on one or more platforms." });
-        }
 
         const result = await podcastCollections.insertOne(data);
         res.send(result);
       } catch (error) {
         console.error(error);
         res.status(500).send({ error: "Internal Server Error" });
+      }
+    });
+
+    // get all category api
+    app.get("/categories", async (req, res) => {
+      try {
+        const result = await categoryCollections.find().toArray();
+        res.send(result);
+      } catch (error) {
+        handleRequestError(res, error);
+      }
+    });
+
+    app.post("/category", async (req, res) => {
+      const data = req.body;
+      const result = await categoryCollections.insertOne(data);
+      res.send(result);
+    });
+
+    app.get("/podCasts", async (req, res) => {
+      try {
+        const result = await podcastCollections.find().toArray();
+        res.send(result);
+      } catch (error) {
+        handleRequestError(res, error);
       }
     });
 
