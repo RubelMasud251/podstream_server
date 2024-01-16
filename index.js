@@ -3,7 +3,15 @@ const express = require("express");
 const app = express();
 const port = process.env.PORT || 5000;
 const cors = require("cors");
-app.use(cors());
+
+app.use(
+  cors({
+    origin: "*", // Set this to the actual origin of your client in production
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    credentials: true,
+    optionsSuccessStatus: 204,
+  })
+);
 app.use(express.json());
 
 const jwt = require("jsonwebtoken");
@@ -179,6 +187,14 @@ async function run() {
         _id: new ObjectId(id),
       });
       res.send(result);
+    });
+
+    app.use((err, req, res, next) => {
+      if (err.name === "UnauthorizedError") {
+        res.status(401).json({ error: "Invalid token" });
+      } else {
+        res.status(500).json({ error: "Internal Server Error" });
+      }
     });
 
     await client.db("admin").command({ ping: 1 });
