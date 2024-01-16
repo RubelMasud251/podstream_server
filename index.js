@@ -63,9 +63,7 @@ async function run() {
         return res.json({ error: "User Not found" });
       }
       if (await (password === user.password)) {
-        const token = jwt.sign({ email: user.email }, JWT_SECRET, {
-          expiresIn: "15s",
-        });
+        const token = jwt.sign({ email: user.email }, JWT_SECRET);
 
         if (res.status(201)) {
           return res.json({ status: "ok", data: token });
